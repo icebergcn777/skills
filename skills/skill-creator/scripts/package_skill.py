@@ -12,6 +12,12 @@ Example:
 
 import fnmatch
 import sys
+
+# --- R66 encoding guard: GBK console must not swallow exit code ---
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 import zipfile
 from pathlib import Path
 from scripts.quick_validate import validate_skill

@@ -8,6 +8,12 @@ import asyncio
 import json
 import re
 import sys
+
+# --- R66 encoding guard: GBK console must not swallow exit code ---
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 import time
 import traceback
 import xml.etree.ElementTree as ET
