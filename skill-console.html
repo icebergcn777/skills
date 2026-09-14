@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill 控制台</title>
+<style>
+  :root { color-scheme: light; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    padding: 16px;
+    line-height: 1.5;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 12px 16px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #1d1d1f 0%, #6e6e73 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .badge { font-size: 12px; color: #6e6e73; background: #f0f0f0; padding: 4px 10px; border-radius: 20px; }
+  .search-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .search-bar input {
+    flex: 1; padding: 10px 14px; border: none; border-radius: 10px; font-size: 14px;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); outline: none; transition: box-shadow 0.2s;
+  }
+  .search-bar input:focus { box-shadow: 0 0 0 2px #007aff, 0 1px 3px rgba(0,0,0,0.1); }
+  .search-bar input::placeholder { color: #aeaeb2; }
+  .quick-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .quick-filters .filter-btn {
+    padding: 5px 12px; border-radius: 20px; border: 1px solid #d2d2d7;
+    background: #fff; font-size: 12px; color: #515154; cursor: default;
+  }
+  .quick-filters .filter-btn.active { background: #007aff; color: #fff; border-color: #007aff; }
+  .stats-bar { display: flex; gap: 16px; padding: 10px 0; margin-bottom: 4px; font-size: 12px; color: #6e6e73; }
+  .stats-bar .stat-num { font-weight: 600; color: #1d1d1f; }
+  .category { background: #fff; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; }
+  .category-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: default; user-select: none; }
+  .category-header:hover { background: #fafafa; }
+  .category-header .left { display: flex; align-items: center; gap: 8px; }
+  .category-header .icon { font-size: 16px; width: 24px; text-align: center; }
+  .category-header .name { font-size: 14px; font-weight: 600; }
+  .category-header .count { font-size: 12px; color: #8e8e93; font-weight: 400; }
+  .category-header .toggle { font-size: 12px; color: #aeaeb2; transition: transform 0.2s; }
+  .category-header .toggle.collapsed { transform: rotate(-90deg); }
+  .category-body { overflow: hidden; transition: max-height 0.25s ease; max-height: 3000px; }
+  .category-body.hidden { max-height: 0; }
+  .skill-list { padding: 0 16px 12px; }
+  .skill-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+  .skill-item:last-child { border-bottom: none; }
+  .skill-item .cmd {
+    font-size: 13px; font-weight: 600; color: #007aff;
+    white-space: nowrap; min-width: 100px; font-family: "SF Mono", Menlo, monospace;
+  }
+  .skill-item .desc { font-size: 12px; color: #515154; line-height: 1.4; }
+  .skill-item .tags { display: flex; gap: 4px; flex-shrink: 0; margin-top: 1px; }
+  .skill-item .tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #f0f0f0; color: #6e6e73; }
+  .tag.cloud { background: #e8f0fe; color: #1967d2; }
+  .tag.new { background: #fef7e0; color: #e37400; }
+  .no-results { text-align: center; padding: 32px; color: #8e8e93; font-size: 14px; display: none; }
+  .no-results.show { display: block; }
+  .frequent { margin-bottom: 12px; }
+  .frequent .label { font-size: 11px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; padding: 0 4px; }
+  .frequent .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .frequent .chip {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    background: #e8f0fe; color: #1967d2; cursor: default; font-family: "SF Mono", Menlo, monospace;
+  }
+  .footer { text-align: center; padding: 16px; font-size: 11px; color: #aeaeb2; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ Skill 控制台</h1>
+  <span class="badge" id="total-count">0 个技能</span>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="search-input" placeholder="搜名称 / 关键词 / 拼音（dapan, fr, lt, zt）" autofocus>
+</div>
+
+<div class="quick-filters">
+  <button class="filter-btn active" data-filter="all">全部</button>
+  <button class="filter-btn" data-filter="freq">常用优先</button>
+  <button class="filter-btn" data-filter="cloud">云端</button>
+  <button class="filter-btn" data-filter="new">新安装</button>
+</div>
+
+<div class="frequent" id="frequent-section">
+  <div class="label">🔥 高频使用</div>
+  <div class="chips" id="frequent-chips"></div>
+</div>
+
+<div class="stats-bar">
+  <span>共 <span class="stat-num" id="stat-total">0</span> 个</span>
+  <span>云端 <span class="stat-num" id="stat-cloud">0</span></span>
+  <span>新装 <span class="stat-num" id="stat-new">0</span></span>
+</div>
+
+<div id="categories-container"></div>
+<div class="no-results" id="no-results">没有匹配的技能</div>
+<div class="footer">也可以打 /console 直接在聊天里查看</div>
+
+<script>
+const categories = [{
+  name: "股票分析", icon: "📈",
+  items: [
+    { cmd: "/limit-up", desc: "涨停分析", tag: "cloud", freq: true },
+    { cmd: "/demon-stocks", desc: "妖股推荐", tag: "cloud", freq: true },
+    { cmd: "/intraday", desc: "分时走势预测", tag: "cloud", freq: true },
+    { cmd: "/intraday-t", desc: "盘中策略（做T）", tag: "cloud", freq: true },
+    { cmd: "/intraday-shape-master", desc: "分时线形状大师（26种形态）", tag: "cloud", freq: true },
+    { cmd: "/buy-and-sell", desc: "开盘形态买卖点", tag: "cloud", freq: true },
+    { cmd: "/stock-report", desc: "个股推荐+板块扫描", tag: "cloud", freq: true },
+    { cmd: "/market-pulse", desc: "大盘情绪+晨间简报", tag: "cloud", freq: true },
+    { cmd: "/price-range-traj", desc: "价格区间与轨迹图", tag: "cloud" },
+    { cmd: "/intraday-shape-pro(已合并)", desc: "分时形状专业版", tag: "cloud" },
+    { cmd: "/buy-at-last", desc: "尾盘买入法", tag: "cloud" },
+    { cmd: "/trade-detail", desc: "成交明细分析", tag: "cloud" },
+    { cmd: "/market-leaders", desc: "龙头股分析", tag: "cloud" },
+    { cmd: "/auction-battle", desc: "集合竞价实战", tag: "cloud" },
+    { cmd: "/capital-chess", desc: "主力成本计算", tag: "cloud" },
+    { cmd: "/key-level-battle", desc: "关键价位攻守", tag: "cloud" },
+    { cmd: "/limit-up-down-patterns", desc: "涨停跌停模式", tag: "cloud" },
+    { cmd: "/trading-secret-language", desc: "主力交易暗语", tag: "cloud" },
+    { cmd: "/second-board-factor", desc: "二板涨停因子", tag: "cloud" },
+    { cmd: "/public-equity-investing", desc: "股权投资研究", tag: "cloud" },
+    { cmd: "/trader", desc: "交易员入口", tag: "cloud" },
+    { cmd: "/analyst", desc: "分析师入口", tag: "cloud" },
+    { cmd: "/analyst-workflow", desc: "深度分析流水线", tag: "cloud" },
+    { cmd: "/comps", desc: "可比公司分析", tag: "cloud" },
+    { cmd: "/valuation", desc: "估值建模", tag: "cloud" },
+    { cmd: "/red-team", desc: "压力测试", tag: "cloud" },
+    { cmd: "/investment-banking", desc: "投行工作台", tag: "cloud" },
+    { cmd: "/break-fake-break", desc: "假突破识别", tag: "cloud" },
+    { cmd: "/rotate-stock", desc: "调仓换股", tag: "cloud" },
+    { cmd: "/open-door", desc: "省Token模式 🆕", tag: "cloud new", freq: true },
+    { cmd: "/persona-clone", desc: "人物克隆 🆕", tag: "cloud new", freq: true },
+    { cmd: "/thumbnail-polish", desc: "缩图美化 🆕", tag: "cloud new", freq: true },
+  ]
+}, {
+  name: "研究与写作", icon: "🔬",
+  items: [
+    { cmd: "/deep-research", desc: "深度研究", tag: "cloud", freq: true },
+    { cmd: "/ultraresearch", desc: "穷尽式调研", tag: "cloud" },
+    { cmd: "/ars-full", desc: "论文流水线", tag: "cloud" },
+    { cmd: "/ars-plan", desc: "论文规划", tag: "cloud" },
+    { cmd: "/ars-lit-review", desc: "文献综述", tag: "cloud" },
+    { cmd: "/ars-reviewer", desc: "模拟评审", tag: "cloud" },
+    { cmd: "/ars-abstract", desc: "中英摘要", tag: "cloud" },
+    { cmd: "/ars-format-convert", desc: "格式转换", tag: "cloud" },
+    { cmd: "/paper-workbench-setup", desc: "论文工作台", tag: "cloud" },
+    { cmd: "/literature-evidence-match", desc: "文献证据匹配", tag: "cloud" },
+    { cmd: "/ltx-video-gen", desc: "视频拍摄大纲", tag: "cloud" },
+    { cmd: "/notebooklm-memory", desc: "长期记忆", tag: "cloud" },
+    { cmd: "/senior-analyst", desc: "商业分析专家", tag: "cloud" },
+    { cmd: "/karpathy-ai-wiki", desc: "AI知识库", tag: "cloud" },
+    { cmd: "/novel-writing", desc: "小说写作", tag: "cloud" },
+  ]
+}, {
+  name: "开发工具", icon: "🛠️",
+  items: [
+    { cmd: "/data-analytics-plugin", desc: "数据分析", tag: "cloud" },
+    { cmd: "/gstack-plan-ceo-review", desc: "CEO战略审查", tag: "cloud" },
+    { cmd: "/gstack-plan-eng-review", desc: "工程架构审查", tag: "cloud" },
+    { cmd: "/gstack-review", desc: "代码审查+修复", tag: "cloud" },
+    { cmd: "/gstack-qa", desc: "自动化测试", tag: "cloud" },
+    { cmd: "/gstack-cso", desc: "安全审计", tag: "cloud" },
+    { cmd: "/gstack-ship", desc: "自动部署", tag: "cloud" },
+    { cmd: "/gstack-retro", desc: "周回顾", tag: "cloud" },
+    { cmd: "/skill-creator", desc: "制作Skill", tag: "cloud" },
+    { cmd: "/skill-search", desc: "搜索Skill", tag: "cloud" },
+    { cmd: "/feature-dev", desc: "功能开发流程", tag: "cloud" },
+    { cmd: "/code-simplify", desc: "代码简化", tag: "cloud" },
+    { cmd: "/commit-commands", desc: "Git自动化", tag: "cloud" },
+    { cmd: "firecrawl-scrape", desc: "网页抓取", tag: "cloud" },
+    { cmd: "firecrawl-search", desc: "搜索", tag: "cloud" },
+    { cmd: "firecrawl-deep-research", desc: "深度研究", tag: "cloud" },
+    { cmd: "firecrawl-crawl", desc: "网站爬取", tag: "cloud" },
+    { cmd: "firecrawl-extract", desc: "数据提取", tag: "cloud" },
+    { cmd: "firecrawl-map", desc: "站点地图", tag: "cloud" },
+    { cmd: "firecrawl-test", desc: "测试", tag: "cloud" },
+  ]
+}, {
+  name: "设计与创意", icon: "🎨",
+  items: [
+    { cmd: "/baoyu-cover-image", desc: "封面图生成", tag: "cloud" },
+    { cmd: "/baoyu-infographic", desc: "信息图", tag: "cloud" },
+    { cmd: "/baoyu-article-illustrator", desc: "文章配图", tag: "cloud" },
+    { cmd: "/baoyu-slide-deck", desc: "PPT生成", tag: "cloud" },
+    { cmd: "/baoyu-xhs-images", desc: "小红书图", tag: "cloud" },
+    { cmd: "/ui-ux-pro-max", desc: "UI设计增强", tag: "cloud" },
+    { cmd: "/awesome-design-html", desc: "品牌HTML参考", tag: "cloud" },
+    { cmd: "/creative-production", desc: "创意制作", tag: "cloud" },
+    { cmd: "/product-design-plugin", desc: "产品设计", tag: "cloud" },
+  ]
+}, {
+  name: "自动化与效率", icon: "⚡",
+  items: [
+    { cmd: "/ultrawork-v2", desc: "最大并行执行", tag: "cloud" },
+    { cmd: "/ultradebug", desc: "7步调试", tag: "cloud" },
+    { cmd: "/schedule", desc: "定时任务", tag: "cloud" },
+    { cmd: "/consolidate-memory", desc: "记忆整理", tag: "cloud" },
+    { cmd: "/harness-engineer", desc: "Agent拓扑设计", tag: "cloud" },
+    { cmd: "/harness-restructuring", desc: "配置重整", tag: "cloud" },
+    { cmd: "/claude-codex-harness-sync", desc: "Codex同步", tag: "cloud" },
+    { cmd: "/daily-brief", desc: "每日简报", tag: "cloud" },
+    { cmd: "/reflection", desc: "复盘反思", tag: "cloud" },
+    { cmd: "/self-heal", desc: "出错修复", tag: "cloud" },
+    { cmd: "/brainstorming", desc: "头脑风暴", tag: "cloud" },
+    { cmd: "/harness-engineering", desc: "多Agent系统", tag: "cloud" },
+  ]
+}, {
+  name: "内容与文档", icon: "📄",
+  items: [
+    { cmd: "/de-ai", desc: "AI去味（真人风格）", tag: "cloud", freq: true },
+    { cmd: "/sales-plugin", desc: "销售全流程", tag: "cloud" },
+    { cmd: "/iceberg-style", desc: "Iceberg分身", tag: "cloud" },
+    { cmd: "/topic-diagnosis", desc: "选题诊断", tag: "cloud" },
+    { cmd: "/writing-plans", desc: "行动方案", tag: "cloud" },
+    { cmd: "docx", desc: "Word文档", tag: "cloud", freq: true },
+    { cmd: "pdf", desc: "PDF文件", tag: "cloud" },
+    { cmd: "pptx", desc: "PPT演示", tag: "cloud" },
+    { cmd: "xlsx", desc: "Excel表格", tag: "cloud" },
+    { cmd: "/tcm-diagnosis", desc: "中医诊断", tag: "cloud" },
+    { cmd: "/md-to-html", desc: "Markdown→公众号/知乎排版 🆕", tag: "cloud new", freq: true },
+    { cmd: "/translator", desc: "AI专业翻译 🆕", tag: "cloud new", freq: true },
+    { cmd: "/publisher", desc: "跨平台发布 🆕", tag: "cloud new", freq: true },
+  ]
+}];
+
+const pinyinMap = {
+  dapan: "大盘", fr: "分时", lt: "龙头", zt: "涨停",
+  dt: "跌停", yg: "妖股", jj: "竞价", cc: "成本",
+  sz: "走势", bk: "板块", ml: "买入", mc: "卖出",
+  zz: "价值", lw: "论文", dm: "代码", cs: "测试",
+  sc: "市场", qy: "情绪", fx: "分析", bg: "报告",
+  tp: "图片", aq: "安全", jk: "健康", sl: "缩图",
+};
+
+function render() {
+  const c = document.getElementById('categories-container');
+  const si = document.getElementById('search-input');
+  const tb = document.getElementById('total-count');
+  const st = document.getElementById('stat-total');
+  const sc = document.getElementById('stat-cloud');
+  const sn = document.getElementById('stat-new');
+  const nr = document.getElementById('no-results');
+  const fbs = document.querySelectorAll('.filter-btn');
+  const fc = document.getElementById('frequent-chips');
+  let af = 'all', sterm = '';
+
+  function tagl(t) {
+    if (!t) return '';
+    const a = t.split(' ');
+    if (a.includes('new')) return '新装';
+    if (a.includes('cloud')) return '云端';
+    return '';
+  }
+
+  function m(item, term) {
+    if (!term) return true;
+    const t = term.toLowerCase(), cmd = item.cmd.toLowerCase(), desc = item.desc.toLowerCase();
+    if (cmd.includes(t) || desc.includes(t)) return true;
+    return pinyinMap[t] && (cmd.includes(pinyinMap[t].toLowerCase()) || desc.includes(pinyinMap[t].toLowerCase()));
+  }
+
+  function fm(item, f) {
+    if (f === 'all') return true;
+    if (f === 'freq') return item.freq;
+    if (f === 'cloud') return item.tag && item.tag.includes('cloud');
+    if (f === 'new') return item.tag && item.tag.includes('new');
+    return true;
+  }
+
+  function rebuild() {
+    c.innerHTML = '';
+    let tc = 0, cc = 0, nc = 0;
+    categories.forEach(cat => {
+      const fi = cat.items.filter(i => m(i, sterm) && fm(i, af));
+      if (!fi.length) return;
+      const d = document.createElement('div'); d.className = 'category';
+      const h = document.createElement('div'); h.className = 'category-header';
+      h.innerHTML = `<div class="left"><span class="icon">${cat.icon}</span><span class="name">${cat.name}</span><span class="count">${fi.length}</span></div><span class="toggle">▼</span>`;
+      d.appendChild(h);
+      const b = document.createElement('div'); b.className = 'category-body';
+      const l = document.createElement('div'); l.className = 'skill-list';
+      fi.forEach(i => {
+        const tl = tagl(i.tag);
+        const dv = document.createElement('div'); dv.className = 'skill-item';
+        dv.innerHTML = `<span class="cmd">${i.cmd}</span><span class="desc">${i.desc}</span>${tl ? `<div class="tags"><span class="tag ${i.tag.split(' ')[0]}">${tl}</span></div>` : ''}`;
+        l.appendChild(dv);
+        tc++;
+        if (i.tag && i.tag.includes('cloud')) cc++;
+        if (i.tag && i.tag.includes('new')) nc++;
+      });
+      b.appendChild(l); d.appendChild(b); c.appendChild(d);
+      let col = false;
+      h.addEventListener('click', () => { col = !col; b.classList.toggle('hidden', col); h.querySelector('.toggle').classList.toggle('collapsed', col); });
+    });
+    tb.textContent = `${tc} 个技能`;
+    st.textContent = tc; sc.textContent = cc; sn.textContent = nc;
+    nr.classList.toggle('show', !tc);
+  }
+
+  (function() {
+    const fi = [];
+    categories.forEach(c => c.items.forEach(i => { if (i.freq) fi.push(i); }));
+    fc.innerHTML = fi.map(i => `<span class="chip" data-cmd="${i.cmd}">${i.cmd}</span>`).join('');
+    fc.addEventListener('click', e => {
+      const chip = e.target.closest('.chip'); if (!chip) return;
+      si.value = chip.dataset.cmd.replace('/', '');
+      sterm = si.value.toLowerCase();
+      rebuild();
+    });
+  })();
+
+  si.addEventListener('input', () => { sterm = si.value.toLowerCase(); rebuild(); });
+  fbs.forEach(b => b.addEventListener('click', () => {
+    fbs.forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); af = b.dataset.filter; rebuild();
+  }));
+  rebuild();
+}
+render();
+</script>
+</body>
+</html>
